@@ -1,0 +1,242 @@
+---
+title: "Happiness Rink in 2017-2019"
+output:
+  html_document:
+    fig_caption: false
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+
+
+knitr::opts_chunk$set(echo = TRUE)
+options(digits = 7)
+
+library(tidyverse)
+library(Hmisc)
+library(corrplot)
+library(rio)
+library(tinytex)
+library(ggplot2)
+library(dplyr)
+library(MASS)
+library(knitr)
+library(DT)
+library(plyr)
+
+```
+
+
+```{r output="asis",  echo=FALSE, , include=FALSE}
+## Read data
+happiness2019 <- read_csv ("data/2019.csv")
+happiness2018 <- read_csv ("data/2018.csv")
+happiness2017 <- read_csv ("data/2017.csv")
+```
+
+```{r echo=FALSE, , include=FALSE}
+# Add a nenw column for year
+happiness2019$year <- c(2019)
+happiness2018$year <- c(2018)
+happiness2017$year <- c(2017)
+
+```
+
+```{r output="asis",  echo=FALSE, , include=FALSE}
+# Rename column to easir join it
+colnames(happiness2019)[1] <- "Rank"
+colnames(happiness2019)[4] <- 'Economy'
+colnames(happiness2019)[6] <- 'Healthy'
+colnames(happiness2019)[7]<- "Freedom"
+colnames(happiness2019)[9]<- "Government corruption"
+
+#head(happiness2019)
+```
+
+```{r output="asis",  echo=FALSE, , include=FALSE}
+
+colnames(happiness2018)[1] <- "Rank"
+colnames(happiness2018)[4] <- 'Economy'
+colnames(happiness2018)[6] <- 'Healthy'
+colnames(happiness2018)[7]<- "Freedom"
+colnames(happiness2018)[9]<- "Government corruption"
+
+happiness2018$`Government corruption`  <- as.numeric(happiness2018[[9]])
+
+#head(happiness2018)
+
+
+
+```
+
+
+
+```{r echo=FALSE}
+colnames(happiness2017)[1] <- "Country or region"
+colnames(happiness2017)[2] <- "Rank"
+colnames(happiness2017)[3] <- "Score"
+colnames(happiness2017)[6] <- 'Economy'
+colnames(happiness2017)[8] <- 'Healthy'
+colnames(happiness2017)[7]<- "Freedom"
+colnames(happiness2017)[11]<- "Government corruption"
+#as.numeric(unlist(happiness2017))
+#head(happiness2017)
+```
+
+
+```{r output="asis",  echo=FALSE}
+
+# combine the happiness data in 2018 and 2019
+happiness <- rbind.fill(happiness2017,happiness2018, happiness2019) 
+
+```
+
+## Correlation Matrix
+
+```{r echo=FALSE , include=FALSE}
+
+happiness_cm <- happiness[,c(3,6,7,8,9,12)]
+happiness.cor = cor(happiness_cm)
+#compute Spearman  coefficients
+
+happiness.cor = cor(happiness_cm, method = c("spearman"))
+
+happiness.rcorr = rcorr(as.matrix(happiness_cm))
+happiness.rcorr
+
+happiness.coeff <- happiness.rcorr$r
+happiness.p <- happiness.rcorr$P
+
+
+
+
+```
+
+### visualizing the correlation matrix
+```{r output="asis",  echo=FALSE}
+#Visualizing the correlation matrix
+corrplot(happiness.cor)
+```
+
+### Correlated valeu to each other
+```{r output="asis",  echo=FALSE}
+newdatacor = cor(happiness[c(3,6,7,8,9,12)])
+corrplot(newdatacor, method = "number")
+```
+
+## Scatter plot 
+### Happiness Score Vs Economy
+```{r output="asis",  echo=FALSE }
+ggplot(subset(happiness), aes(x = Economy , y = Score)) + 
+  geom_line(color = "steelblue", size = 1) +
+  geom_point(color = "steelblue")+
+   
+  geom_smooth(aes(color = year, fill = year), 
+              method = "lm", fullrange = TRUE) +
+  facet_wrap(~ year) +
+  theme_bw() 
+```
+
+### Happiness Score Vs Healthy
+```{r output="asis",  echo=FALSE}
+ggplot(subset(happiness), aes(x = Healthy , y = Score)) + 
+  geom_line(color = "steelblue", size = 1) +
+  geom_point(color = "steelblue")+
+   
+  geom_smooth(aes(color = year, fill = year), 
+              method = "lm", fullrange = TRUE) +
+  facet_wrap(~ year)
+```
+
+### Happiness Score Score Vs Freedom
+```{r output="asis",  echo=FALSE}
+ggplot(subset(happiness), aes(x = Freedom  , y = Score)) + 
+  geom_line(color = "steelblue", size = 1) +
+  geom_point(color = "steelblue")+
+   
+  geom_smooth(aes(color = year, fill = year), 
+              method = "lm", fullrange = TRUE) +
+  facet_wrap(~ year) +
+  theme_bw()
+```
+
+
+
+```{r output="asis",  echo=FALSE}
+happiness_t <- happiness %>% 
+  pivot_longer(-c(`Country or region`)) %>% 
+  group_by(name) %>% 
+  mutate(Z_score = scale(value))
+```
+
+##  Distributions by the Z_score
+
+```{r output="asis",  echo=FALSE}
+ggplot(happiness_t, aes(Z_score)) +
+  geom_density() +
+  facet_grid(name ~ .)
+```
+
+
+## Describe Economy, Healthy, and Freedom
+
+### Economy
+```{r output="asis",  echo=FALSE}
+
+des_e <- describe(happiness$Economy)
+des_e 
+   
+```
+
+### Healthy
+```{r output="asis",  echo=FALSE}
+
+des_h <- describe(happiness$Healthy)
+des_h
+     
+```
+
+### Freedom
+```{r output="asis",  echo=FALSE}
+
+des_f <- describe(happiness$Freedom)
+ des_f
+     
+```
+
+## Descriptive Statistics
+
+```{r output="asis",  echo=FALSE}
+happiness %>% 
+  group_by(year) %>%
+  summarise(n = length(year), Average = mean(Score) ,SD= sd(Score) )%>%
+       kable()
+```
+## Plot The mean of Score
+```{r output="asis",  echo=FALSE}
+ggplot(happiness, aes(year,Score)) +
+     geom_jitter(width = 0.15) +
+     stat_summary(fun.data = mean_sdl, 
+                  fun.args = list(mult = 1),
+                col = "red")
+```
+
+## Inferential Statistics
+
+### The one-way ANOVA summary:
+
+```{r output="asis", echo=FALSE}
+
+   happiness_lm <- lm(Score ~ year , data =  happiness)
+     anova(happiness_lm) %>%
+       kable()
+
+```
+
+
+ 
+
